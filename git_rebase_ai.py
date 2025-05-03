@@ -1459,7 +1459,7 @@ def main():
     parser.add_argument(
         "upstream_ref",
         nargs="?",
-        default="upstream/main",
+        default="upstream/master",
         help="The upstream reference point or commit hash to compare against "
         "(e.g., 'origin/main', 'upstream/develop', specific_commit_hash). "
         "Ensure this reference exists and is fetched.",

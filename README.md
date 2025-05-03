@@ -1,38 +1,41 @@
-# AI-Powered Git Assistant
+# AI-Powered Git Rebase Assistant
 
-This tool leverages the Google Gemini API to assist with common Git tasks, including generating commit messages, suggesting `fixup` operations for interactive rebases, and suggesting `reword` operations with improved commit messages.
+This tool leverages the Google Gemini API to assist with interactive Git rebases by suggesting `fixup` and `reword` operations.
+
+## Installation
+
+```bash
+mkdir -p ~/bin && curl -fLRo ~/bin/ai-rebase.sh https://raw.githubusercontent.com/senomas/git-auto-rebase/refs/heads/master/ai-rebase.sh && chmod +x ~/bin/ai-rebase.sh
+```
 
 ## Features
 
-- **AI Commit Message Generation:** Analyzes staged Git diffs and generates conventional commit messages (subject and body). Supports amending previous commits.
-- **AI Rebase Fixup Suggestions:** Analyzes a range of commits (compared to an upstream branch) and suggests `fixup` operations for commits that appear to be minor corrections to their predecessors. Can optionally attempt to perform the rebase automatically.
-- **AI Rebase Reword Suggestions:** Analyzes a range of commits and suggests improved commit messages (`reword` operations) for those that don't follow conventions or lack clarity. Can optionally attempt to perform the rebase automatically.
-- **Interactive Confirmation:** Prompts for user confirmation before executing Git commands like `commit` or `rebase`.
-- **Contextual Awareness (Commit):** Can request content of specific project files (with user permission) to generate more accurate commit messages.
-- **Contextual Awareness (Rebase):** Can request content of specific files *at specific commits* (with user permission) to improve fixup suggestions.
-- **Safety:** Creates backup branches before attempting automatic rebases.
+- **AI Rebase Assistance (Fixup & Reword):**
+  - Analyzes a range of commits (compared to an upstream branch).
+  - Suggests `fixup` operations for commits that appear to be minor corrections to their predecessors.
+  - Suggests improved commit messages (`reword` operations) for commits that don't follow conventions or lack clarity.
+  - Can optionally attempt to perform the rebase automatically in two phases (fixup first, then reword).
+- **Interactive Confirmation:** Prompts for user confirmation before attempting automatic rebases.
+- **Contextual Awareness (Rebase):** Can request content of specific files _at specific commits_ (with user permission) to improve fixup suggestions.
+- **Safety:** Creates backup branches before attempting automatic rebases. Handles automatic abort on failure.
 - **Dockerized:** Runs in a Docker container for a consistent environment.
-- **Makefile:** Provides convenient shortcuts for common tasks.
 
 ## Prerequisites
 
 - **Git:** Must be installed on your host machine.
 - **Docker:** Must be installed and running on your host machine.
 - **Gemini API Key:** You need an API key from Google AI Studio or Google Cloud.
-- **Make (Optional):** For using the Makefile shortcuts.
 
 ## Setup
 
 1.  **Build the Docker Image:**
-    You can use the provided Makefile:
+    Build manually:
+
     ```bash
-    make build
+    docker build -t docker.senomas.com/git-rebase:1.0 .
     ```
-    Or build manually:
-    ```bash
-    docker build -t docker.senomas.com/commit:1.0 .
-    ```
-    _(Note: The tag `docker.senomas.com/commit:1.0` is used by default. You can override it using the `DOCKER_IMAGE_NAME` environment variable if needed, e.g., `export DOCKER_IMAGE_NAME=my-custom-image:latest`.)_
+
+    _(Note: The tag `docker.senomas.com/git-rebase:1.0` is used by default in `ai-rebase.sh`. You can override it using the `DOCKER_IMAGE_NAME` environment variable if needed, e.g., `export DOCKER_IMAGE_NAME=my-custom-image:latest`.)_
 
 2.  **Set Environment Variables:**
     Export your Gemini API key:
@@ -47,158 +50,89 @@ This tool leverages the Google Gemini API to assist with common Git tasks, inclu
 
 ## Usage
 
-You can use the `Makefile` for convenience or run the `ai-commit.sh` script directly.
+Run the `ai-rebase.sh` script directly.
 
-### Using Makefile
+### Using `ai-rebase.sh` Directly
 
--   **Generate Commit Message:** Stage changes (`git add ...`), then run:
-    ```bash
-    make commit
-    ```
-    To amend the previous commit:
-    ```bash
-    make commit ARGS="-a"
-    ```
--   **Suggest Rebase Fixups:** Compares current branch to `upstream/main` by default.
-    ```bash
-    make rebase
-    ```
-    To compare against a different upstream reference and only show instructions (no auto-rebase):
-    ```bash
-    make rebase UPSTREAM_REF="origin/develop" ARGS="--instruct"
-    ```
--   **Suggest Rebase Rewords:** Compares current branch to `upstream/main` by default.
-    ```bash
-    make reword
-    ```
-    To compare against a different upstream reference and only show instructions (no auto-rebase):
-    ```bash
-    make reword UPSTREAM_REF="origin/develop" ARGS="--instruct"
-    ```
+The `ai-rebase.sh` script runs the `git_rebase_ai.py` script inside a Docker container to perform the analysis and rebase operations.
 
-### Using `ai-commit.sh` Directly
+```bash
+# Compare against upstream/master (default) and attempt auto-rebase (fixup then reword)
+./ai-rebase.sh
 
-The `ai-commit.sh` script acts as the main entry point, selecting the appropriate Python script based on flags.
+# Compare against origin/develop and attempt auto-rebase
+./ai-rebase.sh origin/develop
 
--   **Generate Commit Message (Default):**
-    Stage changes (`git add ...`), then run:
-    ```bash
-    ./ai-commit.sh
-    ```
-    To amend the previous commit:
-    ```bash
-    ./ai-commit.sh -a
-    # or
-    ./ai-commit.sh --amend
-    ```
--   **Suggest Rebase Fixups (`-r` flag):**
-    ```bash
-    # Compare against upstream/main (default) and attempt auto-rebase
-    ./ai-commit.sh -r
+# Compare against upstream/main, show instructions only (no auto-rebase)
+./ai-rebase.sh --instruct
 
-    # Compare against origin/develop and attempt auto-rebase
-    ./ai-commit.sh -r origin/develop
+# Compare against origin/develop, show instructions only
+./ai-rebase.sh origin/develop --instruct
 
-    # Compare against upstream/main, show instructions only (no auto-rebase)
-    ./ai-commit.sh -r --instruct
-
-    # Compare against origin/develop, show instructions only
-    ./ai-commit.sh -r origin/develop --instruct
-    ```
--   **Suggest Rebase Rewords (`-w` flag):**
-    ```bash
-    # Compare against upstream/main (default) and attempt auto-reword
-    ./ai-commit.sh -w
-
-    # Compare against origin/develop and attempt auto-reword
-    ./ai-commit.sh -w origin/develop
-
-    # Compare against upstream/main, show instructions only (no auto-reword)
-    ./ai-commit.sh -w --instruct
-
-    # Compare against origin/develop, show instructions only
-    ./ai-commit.sh -w origin/develop --instruct
-    ```
+# Delete backup branches created by the tool for the current branch
+./ai-rebase.sh --delete-backups
+```
 
 ### Workflow Details
 
-1.  **Commit:**
-    - Stage your changes (`git add ...`).
-    - Run `make commit` or `./ai-commit.sh` (optionally with `-a`).
-    - The tool analyzes the staged diff.
-    - It may ask for permission to read specific project files for better context.
-    - It generates a commit message.
-    - It prints the message and asks for confirmation (`y/n`).
-    - If confirmed, it runs `git commit` (or `git commit --amend`).
+1.  **Rebase (Fixup & Reword):**
 
-2.  **Rebase Fixup:**
+    - Ensure your working directory is clean (`git status`).
     - Ensure your branch is up-to-date with the remote if necessary.
-    - Run `make rebase [UPSTREAM_REF=...] [ARGS=...]` or `./ai-commit.sh -r [upstream_ref] [--instruct]`.
-    - The tool analyzes commits between the `upstream_ref` (e.g., `upstream/main`) and your current branch (`HEAD`).
-    - It identifies commits that look like small fixes to their immediate predecessor.
-    - It may ask for permission to read specific files *at specific commits* for better context.
-    - It prints the suggested `fixup` operations.
-    - **If `--instruct` is NOT used:**
+    - Run `./ai-rebase.sh [upstream_ref] [--instruct] [--delete-backups]`.
+    - The tool analyzes commits between the `upstream_ref` (defaults to `upstream/main`) and your current branch (`HEAD`).
+    - **Phase 1: Fixup Suggestions**
+      - It identifies commits that look like small fixes to their immediate predecessor.
+      - It may ask for permission to read specific files _at specific commits_ for better context.
+      - It prints the suggested `fixup` operations.
+      - **If `--instruct` is NOT used:**
         - It creates a backup branch (e.g., `your-branch-backup-TIMESTAMP`).
-        - It asks for confirmation to attempt the automatic rebase.
+        - It asks for confirmation to attempt the automatic fixup rebase.
         - If confirmed, it runs `git rebase -i` non-interactively using a generated script to apply the fixups.
-        - If the automatic rebase fails (e.g., conflicts), it attempts to abort and provides instructions for manual rebase.
-    - **If `--instruct` IS used:**
-        - It prints instructions on how to perform the rebase manually using the suggestions.
-
-3.  **Rebase Reword:**
-    - Ensure your branch is up-to-date.
-    - Run `make reword [UPSTREAM_REF=...] [ARGS=...]` or `./ai-commit.sh -w [upstream_ref] [--instruct]`.
-    - The tool analyzes commits between the `upstream_ref` and `HEAD`.
-    - It identifies commits with messages that could be improved (clarity, convention adherence).
-    - It generates a complete new commit message (subject and body) for each suggested reword.
-    - It prints the suggested `reword` operations with the new messages.
-    - **If `--instruct` is NOT used:**
-        - It creates a backup branch.
-        - It asks for confirmation to attempt the automatic rebase.
+        - If the automatic rebase fails (e.g., conflicts), it attempts to abort and provides instructions for manual rebase, stopping the process.
+        - If successful, it proceeds to Phase 2.
+      - **If `--instruct` IS used:**
+        - It prints the fixup suggestions and proceeds directly to Phase 2 suggestions without attempting any rebase.
+    - **Phase 2: Reword Suggestions** (Runs only if Phase 1 was successful or `--instruct` was used)
+      - It analyzes the (potentially already fixup-rebased) commits between the `upstream_ref` and `HEAD`.
+      - It identifies commits with messages that could be improved (clarity, convention adherence).
+      - It generates a complete new commit message (subject and body) for each suggested reword.
+      - It prints the suggested `reword` operations with the new messages.
+      - **If `--instruct` is NOT used (and Phase 1 auto-fixup succeeded):**
+        - It asks for confirmation to attempt the automatic reword rebase.
         - If confirmed, it runs `git rebase -i` non-interactively using generated scripts to mark commits for reword and supply the new messages.
-        - If the automatic rebase fails, it attempts to abort and provides instructions for manual rebase.
-    - **If `--instruct` IS used:**
-        - It prints instructions on how to perform the rebase manually, including the suggested new messages to copy.
+        - If the automatic reword rebase fails, it attempts to abort and provides instructions for manual rebase.
+      - **If `--instruct` IS used:**
+        - It prints instructions on how to perform the rebase manually using both the fixup (from Phase 1) and reword suggestions.
 
 ## How it Works
 
-1.  The `Makefile` provides simple targets that call `ai-commit.sh` with appropriate flags and arguments.
-2.  The `ai-commit.sh` script determines which Python script to run based on the presence of `-r` (rebase fixup) or `-w` (rebase reword) flags. If neither is present, it defaults to commit message generation.
-3.  It runs the selected Python script (`git_commit_ai.py`, `git_rebase_ai.py`, or `git_reword_ai.py`) inside the specified Docker container (`docker.senomas.com/commit:1.0` by default).
-4.  It mounts the current directory (`pwd`) as `/repo`, `.gitconfig`, and `.git-credentials` (read-only) into the container.
-5.  It passes the `GEMINI_API_KEY` and `GEMINI_MODEL` environment variables into the container.
-6.  It forwards relevant arguments (like `-a`, `--amend`, `upstream_ref`, `--instruct`) to the Python script.
-7.  **`git_commit_ai.py`:**
-    - Parses arguments (`--amend`).
-    - Gets staged diff (`git diff --staged` or `git diff HEAD~1 --staged`).
-    - Gets project file list (`git ls-tree`).
-    - Interacts with Gemini API, potentially requesting file content (`Request content for file: ...`), to generate a commit message.
-    - Prompts user for confirmation.
-    - Runs `git commit`.
-8.  **`git_rebase_ai.py`:**
-    - Parses arguments (`upstream_ref`, `--instruct`).
+1.  The `ai-rebase.sh` script is the main entry point.
+2.  It runs the `git_rebase_ai.py` script inside the specified Docker container (`docker.senomas.com/git-rebase:1.0` by default).
+3.  It mounts the current directory (`pwd`) as `/repo`, `.gitconfig`, and `.git-credentials` (read-only) into the container.
+4.  It passes the `GEMINI_API_KEY` and `GEMINI_MODEL` environment variables into the container.
+5.  It forwards relevant arguments (like `upstream_ref`, `--instruct`, `--delete-backups`) to the Python script.
+6.  **`git_rebase_ai.py`:**
+    - Parses arguments (`upstream_ref`, `--instruct`, `--delete-backups`).
+    - Checks for clean Git status.
+    - Handles `--delete-backups` if present.
     - Finds merge base (`git merge-base`).
-    - Gets commits, file structure, and diff for the range.
-    - Interacts with Gemini API, potentially requesting file content at specific commits (`REQUEST_FILES: [...]`), to suggest `FIXUP: ... INTO ...` lines.
-    - Parses suggestions.
-    - If not `--instruct`, creates backup, confirms, and attempts automatic rebase using `GIT_SEQUENCE_EDITOR` script to change `pick` to `f`. Handles potential failures and aborts.
-    - If `--instruct`, prints manual instructions.
-9.  **`git_reword_ai.py`:**
-    - Parses arguments (`upstream_ref`, `--instruct`).
-    - Finds merge base.
-    - Gets commits and diff for the range.
-    - Interacts with Gemini API to suggest `REWORD: ... NEW_MESSAGE: ... END_MESSAGE` blocks.
-    - Parses suggestions.
-    - If not `--instruct`, creates backup, confirms, and attempts automatic rebase using `GIT_SEQUENCE_EDITOR` (changes `pick` to `r`) and `GIT_EDITOR` (supplies new message via env var) scripts. Handles potential failures and aborts.
-    - If `--instruct`, prints manual instructions with new messages.
+    - **Fixup Phase:**
+      - Gets commits, file structure, and diff for the range.
+      - Interacts with Gemini API, potentially requesting file content at specific commits (`REQUEST_FILES: [...]`), to suggest `FIXUP: ... INTO ...` lines.
+      - Parses suggestions.
+      - If not `--instruct`, creates backup, confirms, and attempts automatic fixup rebase using `GIT_SEQUENCE_EDITOR` script. Handles potential failures and aborts. If successful, proceeds.
+      - If `--instruct`, stores suggestions and proceeds.
+    - **Reword Phase:** (If fixup succeeded or `--instruct`)
+      - Re-gathers commits and diff for the (potentially modified) range.
+      - Interacts with Gemini API to suggest `REWORD: ... NEW_MESSAGE: ... END_MESSAGE` blocks.
+      - Parses suggestions.
+      - If not `--instruct`, confirms, and attempts automatic reword rebase using `GIT_SEQUENCE_EDITOR` (changes `pick` to `r`) and `GIT_EDITOR` (supplies new message via env var) scripts. Handles potential failures and aborts.
+      - If `--instruct`, prints combined manual instructions (fixup + reword).
 
 ## Files
 
-- `ai-commit.sh`: Main entry script, selects Python script based on flags.
-- `git_commit_ai.py`: Handles AI commit message generation.
-- `git_rebase_ai.py`: Handles AI rebase fixup suggestions and automation.
-- `git_reword_ai.py`: Handles AI rebase reword suggestions and automation.
+- `ai-rebase.sh`: Main entry script that runs the Python script in Docker.
+- `git_rebase_ai.py`: Handles AI rebase fixup and reword suggestions and automation.
 - `Dockerfile`: Defines the Docker image environment.
-- `Makefile`: Provides convenience targets (`build`, `commit`, `rebase`, `reword`).
 - `README.md`: This file.
