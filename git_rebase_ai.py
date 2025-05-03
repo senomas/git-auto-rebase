@@ -1043,8 +1043,22 @@ def rebase(args):
     upstream_ref = args.upstream_ref
     logging.info(f"Comparing against reference: {upstream_ref}")
 
-    # --- Safety: Create Backup Branch ---
-    # Always create backup, especially if attempting auto-rebase
+    # --- Gather Initial Git Context ---
+    print("\nGathering initial Git context...")
+    commit_range, merge_base = get_commit_range(upstream_ref, current_branch)
+    if not commit_range:
+        sys.exit(1)  # Error message already printed by get_commit_range
+
+    logging.info(f"Analyzing commit range: {commit_range} (Merge Base: {merge_base})")
+
+    commits = get_commits_in_range(commit_range)
+    if not commits:
+        print(
+            f"\n✅ No commits found between '{merge_base}' ({upstream_ref}) and '{current_branch}'. Nothing to rebase."
+        )
+        sys.exit(0)
+
+    # --- Safety: Create Backup Branch (only if commits exist) ---
     backup_branch = create_backup_branch(current_branch)
     if not backup_branch:
         try:
@@ -1067,21 +1081,9 @@ def rebase(args):
         print(f"     git reset --hard {backup_branch}")
         print("-" * 40)
 
-    # --- Gather Git Context ---
-    print("\nGathering Git context...")
-    commit_range, merge_base = get_commit_range(upstream_ref, current_branch)
-    if not commit_range:
-        sys.exit(1)
-
-    logging.info(f"Analyzing commit range: {commit_range} (Merge Base: {merge_base})")
-
-    commits = get_commits_in_range(commit_range)
-    if not commits:
-        logging.info(
-            f"No commits found between '{merge_base}' and '{current_branch}'. Nothing to do."
-        )
-        sys.exit(0)
-
+    # --- Gather Remaining Git Context ---
+    print("\nGathering detailed Git context for AI...")
+    # We already have commits, commit_range, merge_base from the initial check
     file_structure, changed_files_list = get_changed_files_in_range(commit_range)
     diff = get_diff_in_range(commit_range)
 
