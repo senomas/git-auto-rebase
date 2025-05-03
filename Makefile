@@ -2,8 +2,8 @@
 
 # === Variables ===
 # Override these on the command line like: make build IMAGE_TAG=2.0
-IMAGE_NAME ?= docker.senomas.com/commit
-IMAGE_TAG  ?= 1.1
+IMAGE_NAME ?= docker.senomas.com/git-rebase
+IMAGE_TAG  ?= 1.0
 # Full image reference used in commands
 FULL_IMAGE_NAME = $(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -14,8 +14,7 @@ ARGS ?=
 # === Targets ===
 
 # Phony targets are not files
-.PHONY: help build run delete-backups
-
+.PHONY: FORCE
 # Default target when running 'make'
 .DEFAULT_GOAL := run
 
@@ -24,11 +23,14 @@ build: ## Build the Docker image
 	docker build -t $(FULL_IMAGE_NAME) .
 	@echo "Build complete: $(FULL_IMAGE_NAME)"
 
-run: build
+run: build FORCE
 	@echo "Running ai-commit.sh using image: $(FULL_IMAGE_NAME)..."
 	@echo "Passing arguments: $(ARGS)"
 	# Pass the image name via environment variable and arguments to the script
-	DOCKER_IMAGE_NAME=$(FULL_IMAGE_NAME) ./ai-rebase.sh -r origin/master $(ARGS)
+	DOCKER_IMAGE_NAME=$(FULL_IMAGE_NAME) ./ai-rebase.sh $(ARGS) origin/master
 
-delete-backups:
-	git branch --list 'master-backup-*' | xargs git branch -D
+delete-backups: build FORCE
+	@echo "Running ai-commit.sh using image: $(FULL_IMAGE_NAME)..."
+	@echo "Passing arguments: $(ARGS)"
+	# Pass the image name via environment variable and arguments to the script
+	DOCKER_IMAGE_NAME=$(FULL_IMAGE_NAME) ./ai-rebase.sh $(ARGS) --delete-backups

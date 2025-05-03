@@ -17,13 +17,10 @@ RUN groupadd -r appgroup && useradd --no-log-init -r -g appgroup -d /home/appuse
 RUN pip install --no-cache-dir google-generativeai
 
 # Copy the Python script into the container
-COPY git_commit_ai.py /app/
 COPY git_rebase_ai.py /app/
-COPY git_reword_ai.py /app/
 
 # Make the script executable
-RUN chmod +x /app/git_commit_ai.py ; \
-  chmod +x /app/git_rebase_ai.py
+RUN chmod +x /app/git_rebase_ai.py
 
 WORKDIR /repo
 
@@ -34,5 +31,5 @@ RUN chown -R appuser:appgroup /app && chown -R appuser:appgroup /repo
 USER appuser
 
 # Set the entrypoint to run the script when the container starts
-ENTRYPOINT ["python"]
+ENTRYPOINT ["python", "/app/git_rebase_ai.py"]
 
