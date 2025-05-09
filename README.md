@@ -17,6 +17,7 @@ mkdir -p ~/bin && curl -fLRo ~/bin/ai-rebase.sh https://raw.githubusercontent.co
   - Can optionally attempt to perform the rebase automatically in two phases (fixup first, then reword).
 - **Interactive Confirmation:** Prompts for user confirmation before attempting automatic rebases.
 - **Contextual Awareness (Rebase):** Can request content of specific files _at specific commits_ (with user permission) to improve fixup suggestions.
+- **File Exclusion:** Supports a `.rebase-ignore` file (similar to `.gitignore`) to exclude specific files or patterns from AI analysis for both fixup and reword suggestions.
 - **Safety:** Creates backup branches before attempting automatic rebases. Handles automatic abort on failure.
 - **Dockerized:** Runs in a Docker container for a consistent environment.
 
