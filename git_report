@@ -1,0 +1,27 @@
+#!/bin/bash
+
+git fetch upstream
+git --no-pager log --decorate --graph upstream/master..
+echo -e "\n\n--------------------------------------------------------------------------------"
+# Read .rebase-ignore and build exclude_args array
+exclude_args=()
+if [[ -f .rebase-ignore ]]; then
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		# Trim leading/trailing whitespace from the line
+		line_trimmed=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+		# Skip empty lines or lines starting with # (comments)
+		if [[ -n "$line_trimmed" && ! "$line_trimmed" =~ ^\s*# ]]; then
+			exclude_args+=(":(exclude)$line_trimmed")
+		fi
+	done <.rebase-ignore
+fi
+
+echo git --no-pager diff upstream/master $(git stash create --include-untracked) --name-only
+git --no-pager diff upstream/master $(git stash create --include-untracked) --name-only
+echo -e "\n\n--------------------------------------------------------------------------------"
+
+echo git --no-pager diff upstream/master $(git stash create --include-untracked) "${exclude_args[@]}"
+git --no-pager diff upstream/master $(git stash create --include-untracked) "${exclude_args[@]}"
+
+echo -e "\n\n--------------------------------------------------------------------------------"
+echo DATE: $(date "+%Y-%m-%d %H:%M:%S")
