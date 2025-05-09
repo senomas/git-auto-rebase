@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
+VERSION=1.0
+
+echo "AI-Rebase v$VERSION"
 
 # Check for required Git configuration files
 if [ ! -f "$HOME/.gitconfig" ]; then
@@ -12,7 +15,10 @@ if [ ! -f "$HOME/.git-credentials" ]; then
 	exit 1
 fi
 
-git fetch "$@"
+IFS='/' read -r part1 part2 <<<"$1"
+
+echo git fetch $part1 $part2
+git fetch $part1 $part2
 
 docker run --rm -it \
 	-v "$(pwd):/repo" \
@@ -21,4 +27,4 @@ docker run --rm -it \
 	-e GEMINI_API_KEY="$GEMINI_API_KEY" \
 	-e GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}" \
 	-u "$(id -u):$(id -g)" \
-	"${DOCKER_IMAGE_NAME:-senomas/git-rebase:1.0}" "$@"
+	"senomas/git-rebase:$VERSION" "$@"
