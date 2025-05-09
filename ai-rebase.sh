@@ -15,10 +15,12 @@ if [ ! -f "$HOME/.git-credentials" ]; then
 	exit 1
 fi
 
-IFS='/' read -r part1 part2 <<<"$1"
+if [ ! "$1" = "--delete-backups" ]; then
+	IFS='/' read -r part1 part2 <<<"$1"
 
-echo git fetch $part1 $part2
-git fetch $part1 $part2
+	echo git fetch $part1 $part2
+	git fetch $part1 $part2
+fi
 
 docker run --rm -it \
 	-v "$(pwd):/repo" \
