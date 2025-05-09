@@ -18,4 +18,4 @@ docker run --rm -it \
 	-e GEMINI_API_KEY="$GEMINI_API_KEY" \
 	-e GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}" \
 	-u "$(id -u):$(id -g)" \
-	"${DOCKER_IMAGE_NAME:-docker.senomas.com/git-rebase:1.0}" "$@"
+	"${DOCKER_IMAGE_NAME:-senomas/git-rebase:1.0}" "$@"

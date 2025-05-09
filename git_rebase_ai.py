@@ -8,6 +8,7 @@ import re
 import logging
 import tempfile
 import json
+import fnmatch
 
 
 # --- Configuration ---
@@ -172,39 +173,26 @@ def get_commits_in_range(commit_range):
     return []  # Return empty list on failure or no commits
 
 
-def get_commits_data_in_range(commit_range):
-    # Use --format=%H %s to get full hash for later matching if needed
-    log_output = run_git_command(
-        ["log", "--pretty=format:%h %H %s", "--reverse", commit_range]
-    )
-    if log_output is not None:
-        commits = log_output.splitlines()
-        # Store as list of dicts for easier access
-        commit_data = []
-        for line in commits:
-            parts = line.split(" ", 2)
-            if len(parts) == 3:
-                commit_data.append(
-                    {"short_hash": parts[0], "full_hash": parts[1], "subject": parts[2]}
-                )
-        logging.info(f"Found {len(commit_data)} commits in range {commit_range}.")
-        return commit_data
-    return []
-
-
-def get_changed_files_in_range(commit_range):
+def get_project_file_structure(ignore_patterns):
     """
-    Gets a list of files changed in the specified range and generates
-    a simple directory structure string representation.
+    Gets a list of all tracked files in the repository, filters them using
+    ignore_patterns, and generates a simple directory structure string representation.
     """
-    diff_output = run_git_command(["diff", "--name-only", commit_range])
-    if diff_output is not None:
-        files = diff_output.splitlines()
-        logging.info(f"Found {len(files)} changed files in range {commit_range}.")
+    ls_files_output = run_git_command(["ls-files"])
+    if ls_files_output is not None:
+        all_files = ls_files_output.splitlines()
+
+        # Filter files based on ignore_patterns
+        filtered_files = [
+            f for f in all_files if not is_path_ignored(f, ignore_patterns)
+        ]
+        logging.info(
+            f"Found {len(all_files)} total files, {len(filtered_files)} after applying ignore patterns for project structure."
+        )
 
         # Basic tree structure representation
         tree = {}
-        for file_path in files:
+        for file_path in filtered_files:
             parts = file_path.replace("\\", "/").split("/")
             node = tree
             for i, part in enumerate(parts):
@@ -235,20 +223,51 @@ def get_changed_files_in_range(commit_range):
             return lines
 
         tree_str = "\n".join(format_tree(tree))
-        return tree_str, files
+        return tree_str, filtered_files
     return "", []
 
 
-def get_diff_in_range(commit_range):
-    """Gets the combined diffstat and patch for the specified range."""
-    diff_output = run_git_command(["diff", "--patch-with-stat", commit_range])
+def get_diff_in_range(commit_range, ignore_patterns):
+    """
+    Gets the combined diffstat and patch for the specified range,
+    respecting ignore patterns.
+    """
+    command = ["diff", "--patch-with-stat", commit_range]
+    if ignore_patterns:
+        command.append("--")  # Separator for pathspecs
+        for pattern in ignore_patterns:
+            command.append(f":(exclude){pattern}")
+
+    diff_output = run_git_command(command)
     if diff_output is not None:
         logging.info(
-            f"Generated diff for range {commit_range} (length: {len(diff_output)} chars)."
+            f"Generated diff for range {commit_range} (length: {len(diff_output)} chars, respecting ignores)."
         )
     else:
-        logging.warning(f"Could not generate diff for range {commit_range}.")
+        logging.warning(
+            f"Could not generate diff for range {commit_range} (respecting ignores)."
+        )
     return diff_output if diff_output is not None else ""
+
+
+def get_commits_data_in_range(commit_range):
+    # Use --format=%H %s to get full hash for later matching if needed
+    log_output = run_git_command(
+        ["log", "--pretty=format:%h %H %s", "--reverse", commit_range]
+    )
+    if log_output is not None:
+        commits = log_output.splitlines()
+        # Store as list of dicts for easier access
+        commit_data = []
+        for line in commits:
+            parts = line.split(" ", 2)
+            if len(parts) == 3:
+                commit_data.append(
+                    {"short_hash": parts[0], "full_hash": parts[1], "subject": parts[2]}
+                )
+        logging.info(f"Found {len(commit_data)} commits in range {commit_range}.")
+        return commit_data
+    return []
 
 
 def get_file_content_at_commit(commit_hash, file_path):
@@ -261,6 +280,35 @@ def get_file_content_at_commit(commit_hash, file_path):
         )
         return None
     return content
+
+
+# --- Ignore Pattern Helpers ---
+
+
+def is_path_ignored(path, ignore_patterns):
+    """Checks if a path matches any of the gitignore-style patterns."""
+    for pattern in ignore_patterns:
+        if fnmatch.fnmatch(path, pattern):
+            return True
+    return False
+
+
+def load_ignore_patterns(ignore_file_path):
+    """Loads patterns from a .gitignore-style file."""
+    patterns = []
+    if os.path.exists(ignore_file_path):
+        try:
+            with open(ignore_file_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    stripped_line = line.strip()
+                    if stripped_line and not stripped_line.startswith("#"):
+                        patterns.append(stripped_line)
+            logging.info(f"Loaded {len(patterns)} patterns from {ignore_file_path}")
+        except Exception as e:
+            logging.warning(f"Could not read ignore file {ignore_file_path}: {e}")
+    else:
+        logging.info(f"Ignore file {ignore_file_path} not found. No patterns loaded.")
+    return patterns
 
 
 # --- AI Interaction ---
@@ -702,9 +750,9 @@ You are an expert Git assistant specializing in commit message conventions. Your
 ```
 {commit_list_str}
 ```
-4.  **Combined Diff for the Range (`git diff --patch-with-stat {commit_range}`):**
+4.  **Combined Diff for the Range (respecting .rebase-ignore, `git diff --patch-with-stat {commit_range}`):**
 ```diff
-{diff if diff else "No differences found or unable to get diff."}
+{diff if diff else "No differences found or unable to get diff (respecting ignores)."}
 ```
 
 **Instructions:**
@@ -1043,6 +1091,9 @@ def rebase(args):
     upstream_ref = args.upstream_ref
     logging.info(f"Comparing against reference: {upstream_ref}")
 
+    # Load ignore patterns early
+    ignore_patterns = load_ignore_patterns(".rebase-ignore")
+
     # --- Gather Initial Git Context ---
     print("\nGathering initial Git context...")
     commit_range, merge_base = get_commit_range(upstream_ref, current_branch)
@@ -1084,15 +1135,19 @@ def rebase(args):
     # --- Gather Remaining Git Context ---
     print("\nGathering detailed Git context for AI...")
     # We already have commits, commit_range, merge_base from the initial check
-    file_structure, changed_files_list = get_changed_files_in_range(commit_range)
-    diff = get_diff_in_range(commit_range)
+    file_structure, project_files_for_structure = get_project_file_structure(
+        ignore_patterns
+    )
+    diff = get_diff_in_range(commit_range, ignore_patterns)
 
-    if not diff and not changed_files_list:
+    if not diff:  # If diff is empty after respecting ignores
         logging.warning(
-            f"No file changes or diff found between '{merge_base}' and '{current_branch}',"
+            f"No relevant diff found between '{merge_base}' and '{current_branch}' (respecting .rebase-ignore)."
         )
-        logging.warning("even though commits exist. AI suggestions might be limited.")
-        # Don't exit automatically, let AI try
+        logging.warning(
+            "AI suggestions might be limited if all changes were in ignored files."
+        )
+        # Don't exit automatically, let AI try, it has project structure
 
     # --- Interact with AI ---
     print("\nGenerating prompt for AI fixup suggestions...")
@@ -1267,6 +1322,9 @@ def reword(args):
     upstream_ref = args.upstream_ref
     logging.info(f"Comparing against reference: {upstream_ref}")
 
+    # Load ignore patterns early (reword also uses get_diff_in_range)
+    ignore_patterns = load_ignore_patterns(".rebase-ignore")
+
     # --- Safety: Create Backup Branch ---
     backup_branch = create_backup_branch(current_branch)
     if not backup_branch:
@@ -1304,7 +1362,9 @@ def reword(args):
         )
         sys.exit(0)
 
-    diff = get_diff_in_range(commit_range)  # Diff might help AI judge messages
+    diff = get_diff_in_range(
+        commit_range, ignore_patterns
+    )  # Diff might help AI judge messages
 
     # --- Interact with AI ---
     print("\nGenerating prompt for AI reword suggestions...")

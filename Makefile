@@ -2,7 +2,7 @@
 
 # === Variables ===
 # Override these on the command line like: make build IMAGE_TAG=2.0
-IMAGE_NAME ?= docker.senomas.com/git-rebase
+IMAGE_NAME ?= senomas/git-rebase
 IMAGE_TAG  ?= 1.0
 # Full image reference used in commands
 FULL_IMAGE_NAME = $(IMAGE_NAME):$(IMAGE_TAG)
@@ -22,6 +22,7 @@ build: ## Build the Docker image
 	@echo "Building Docker image: $(FULL_IMAGE_NAME)..."
 	docker build -t $(FULL_IMAGE_NAME) .
 	@echo "Build complete: $(FULL_IMAGE_NAME)"
+	docker push $(FULL_IMAGE_NAME)
 
 run: build FORCE
 	@echo "Running ai-commit.sh using image: $(FULL_IMAGE_NAME)..."
