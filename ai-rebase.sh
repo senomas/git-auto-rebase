@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Check for required Git configuration files
 if [ ! -f "$HOME/.gitconfig" ]; then
@@ -10,6 +11,8 @@ if [ ! -f "$HOME/.git-credentials" ]; then
 	>&2 echo "Error: Git credentials file not found at $HOME/.git-credentials"
 	exit 1
 fi
+
+git fetch "$@"
 
 docker run --rm -it \
 	-v "$(pwd):/repo" \
