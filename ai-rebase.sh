@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-VERSION=1.0
+VERSION=1.1
 
 echo "AI-Rebase v$VERSION"
 
@@ -18,8 +18,12 @@ fi
 if [ ! "$1" = "--delete-backups" ]; then
 	IFS='/' read -r part1 part2 <<<"$1"
 
-	echo git fetch $part1 $part2
-	git fetch $part1 $part2
+	if [ -z "$part1" ] || [ -z "$part2" ]; then
+		echo no fetch
+	else
+		echo git fetch $part1 $part2
+		git fetch $part1 $part2
+	fi
 fi
 
 docker run --rm -it \
@@ -27,6 +31,6 @@ docker run --rm -it \
 	-v "$HOME/.gitconfig:/home/appuser/.gitconfig:ro" \
 	-v "$HOME/.git-credentials:/home/appuser/.git-credentials:ro" \
 	-e GEMINI_API_KEY="$GEMINI_API_KEY" \
-	-e GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.0-flash}" \
+	-e GEMINI_MODEL="${GEMINI_MODEL:-gemini-1.5-flash}" \
 	-u "$(id -u):$(id -g)" \
 	"senomas/git-rebase:$VERSION" "$@"

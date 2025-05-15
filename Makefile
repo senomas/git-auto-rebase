@@ -3,7 +3,7 @@
 # === Variables ===
 # Override these on the command line like: make build IMAGE_TAG=2.0
 IMAGE_NAME ?= senomas/git-rebase
-IMAGE_TAG  ?= 1.0
+IMAGE_TAG  ?= 1.1
 # Full image reference used in commands
 FULL_IMAGE_NAME = $(IMAGE_NAME):$(IMAGE_TAG)
 

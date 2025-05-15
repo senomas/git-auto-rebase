@@ -14,7 +14,7 @@ ENV HOME=/home/appuser
 RUN groupadd -r appgroup && useradd --no-log-init -r -g appgroup -d /home/appuser -m appuser
 
 # Install any necessary dependencies (in this case, just the google-generativeai library)
-RUN pip install --no-cache-dir google-generativeai
+RUN pip install --no-cache-dir google-generativeai==0.8.5
 
 # Copy the Python script into the container
 COPY git_rebase_ai.py /app/
