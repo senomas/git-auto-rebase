@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-VERSION=1.1
+VERSION=1.2
 
 echo "AI-Rebase v$VERSION"
 
@@ -13,17 +13,6 @@ fi
 if [ ! -f "$HOME/.git-credentials" ]; then
 	>&2 echo "Error: Git credentials file not found at $HOME/.git-credentials"
 	exit 1
-fi
-
-if [ ! "$1" = "--delete-backups" ]; then
-	IFS='/' read -r part1 part2 <<<"$1"
-
-	if [ -z "$part1" ] || [ -z "$part2" ]; then
-		echo no fetch
-	else
-		echo git fetch $part1 $part2
-		git fetch $part1 $part2
-	fi
 fi
 
 docker run --rm -it \
