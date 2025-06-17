@@ -1548,6 +1548,9 @@ def main():
         logging.error("This script must be run from within a Git repository.")
         sys.exit(1)
 
+    if not check_git_status():
+        sys.exit(1)  # Exit if working directory is not clean
+
     # Handle --delete-backups flag first
     if args.delete_backups:
         current_branch = get_current_branch()
